@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { COURSE_PACKAGES, getCourseForBand, getQuizForPart } from './courseCatalog'
 import { getCourseData } from './knowledgeData'
 import { getQuiz } from '../test/quizData'
+import { GRADE56_LESSON_DETAILS, getGrade56LessonDetail } from './content/grade56Content'
 
 const retiredCopy = new RegExp([
   '初' + '中',
@@ -11,6 +12,46 @@ const retiredCopy = new RegExp([
 ].join('|'))
 
 describe('primary course packages', () => {
+  it('gives every AI exploration chapter a complete primary-school lesson detail', () => {
+    const course = COURSE_PACKAGES['grade5-6']
+    const details = course.parts.map((part) => GRADE56_LESSON_DETAILS[part.id])
+
+    expect(details).toHaveLength(9)
+    expect(details.every((detail) => detail)).toBe(true)
+    expect(details.every((detail) => (
+      detail.intro.trim().length >= 80
+      && detail.visualSteps.length >= 3
+      && detail.experiment.steps.length >= 3
+      && detail.safetyChecklist.length >= 2
+      && detail.challenge.instructions.length >= 2
+      && detail.challenge.successHint.trim().length > 0
+    ))).toBe(true)
+    expect(JSON.stringify(details)).not.toMatch(retiredCopy)
+  })
+
+  it('offers optional videos only for the five supported exploration chapters', () => {
+    const videos = Object.entries(GRADE56_LESSON_DETAILS)
+      .filter(([, detail]) => detail.video)
+      .map(([partId, detail]) => ({ partId, ...detail.video }))
+
+    expect(videos.map(({ partId }) => partId)).toEqual(['ael-1', 'ael-3', 'ael-4', 'ael-6', 'ael-9'])
+    expect(videos.every((video) => (
+      /^BV[0-9A-Za-z]{10}$/.test(video.bvid ?? '')
+      && (video.title?.trim().length ?? 0) > 0
+      && (video.watchPrompt?.match(/？/g)?.length ?? 0) >= 2
+      && (video.watchPrompt?.match(/？/g)?.length ?? 0) <= 3
+    ))).toBe(true)
+  })
+
+  it('resolves lesson details by stable chapter id without leaking into other courses', () => {
+    for (const part of COURSE_PACKAGES['grade5-6'].parts) {
+      expect(getGrade56LessonDetail(part.id)).toBe(GRADE56_LESSON_DETAILS[part.id])
+    }
+    expect(getGrade56LessonDetail('ael-10')).toBeUndefined()
+    expect(getGrade56LessonDetail('qmx-1')).toBeUndefined()
+    expect(getGrade56LessonDetail('cxd-1')).toBeUndefined()
+  })
+
   it.each([
     ['grade1-2', 'qmx', 8],
     ['grade3-4', 'cxd', 6],
