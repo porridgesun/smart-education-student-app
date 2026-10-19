@@ -521,74 +521,73 @@
 
 .grade56-content {
   display: grid;
-  gap: 12px;
+  gap: 16px;
+  width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  padding: 18px 16px;
+  padding: 18px 16px 28px;
 }
 
 .grade56-section {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
+  min-width: 0;
+  padding: 18px;
   border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
   border-radius: 17px;
   background: linear-gradient(145deg, #FFFDF9, color-mix(in srgb, var(--warm-accent-wash) 54%, #fff));
   box-shadow: 0 9px 20px rgba(112, 76, 43, 0.07);
 }
 
-.grade56-section__icon {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
-  background: #fff;
-  font-size: 17px;
-}
-
 .grade56-section h2 {
-  margin: 0 0 5px;
+  margin: 0 0 12px;
   color: var(--ink);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 850;
 }
 
+.grade56-section h3 {
+  margin: 12px 0 9px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
 .grade56-section p {
-  margin: 0;
+  margin: 8px 0;
   color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 14.5px;
+  line-height: 1.75;
 }
 
-.grade56-section--concepts > div:last-child {
-  min-width: 0;
-  flex: 1;
-}
-
+.grade56-visual-grid,
 .grade56-concepts {
   display: grid;
-  gap: 9px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
   margin: 0;
 }
 
+.grade56-glossary {
+  margin-top: 16px;
+}
+
+.grade56-visual-grid > div,
 .grade56-concepts > div {
-  padding: 10px 12px;
+  min-width: 0;
+  padding: 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.78);
 }
 
+.grade56-visual-grid dt,
 .grade56-concepts dt {
   color: var(--accent-deep);
   font-size: 14px;
   font-weight: 850;
 }
 
+.grade56-visual-grid dd,
 .grade56-concepts dd {
   margin: 3px 0 0;
-  color: var(--ink-soft);
+  color: var(--ink);
   font-size: 13.5px;
   line-height: 1.6;
 }
@@ -597,6 +596,100 @@
   display: block;
   margin-top: 2px;
   color: var(--ink);
+}
+
+.grade56-steps {
+  counter-reset: grade56-step;
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+
+.grade56-steps li {
+  counter-increment: grade56-step;
+  position: relative;
+  min-height: 32px;
+  padding: 4px 0 10px 38px;
+  color: var(--ink);
+  line-height: 1.65;
+}
+
+.grade56-steps li::before {
+  content: counter(grade56-step);
+  position: absolute;
+  left: 0;
+  top: 2px;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--primary-deep);
+  color: #fff;
+  font-weight: 800;
+}
+
+.grade56-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.grade56-checklist li {
+  margin-top: 9px;
+  padding: 10px 12px 10px 32px;
+  border-left: 4px solid #9a3d19;
+  border-radius: 9px;
+  background: #fff4e8;
+  color: #572310;
+  font-weight: 650;
+  line-height: 1.65;
+}
+
+.grade56-checklist li::before {
+  content: '✓';
+  margin-left: -20px;
+  margin-right: 9px;
+}
+
+.grade56-section .grade56-record,
+.grade56-section .grade56-success {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--primary-wash);
+  color: var(--ink);
+}
+
+.grade56-section--video .lesson-video-card { margin-bottom: 0; }
+.grade56-section--video .lesson-video-card__player { aspect-ratio: 16 / 9; }
+.grade56-section--video .lesson-video-card__player iframe { width: 100%; border: 0; }
+.grade56-section--video .lesson-video-card__link { min-height: 44px; }
+.grade56-section .grade56-video-prompt { color: var(--ink); }
+
+.grade56-test-entry {
+  padding: 17px 18px;
+  border-radius: 16px;
+  background: var(--primary-wash);
+  color: var(--ink);
+}
+
+.grade56-test-entry p { margin: 0 0 12px; line-height: 1.6; }
+.grade56-test-entry button {
+  min-height: 46px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary-deep);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .grade56-visual-grid,
+  .grade56-concepts { grid-template-columns: minmax(0, 1fr); }
+  .grade56-test-entry button { width: 100%; }
 }
 
 .content-completion {

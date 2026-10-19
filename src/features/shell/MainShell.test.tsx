@@ -28,6 +28,22 @@ describe('main shell navigation', () => {
     expect(screen.getByRole('navigation', { name: '主要导航' })).toBeInTheDocument()
   })
 
+  it('opens the test tab from a grade 5-6 lesson without passing its challenge', async () => {
+    const user = userEvent.setup()
+    render(<AppStateProvider><MainShell /></AppStateProvider>)
+
+    await user.click(screen.getByRole('button', { name: '知识' }))
+    const chapter = screen.getByRole('button', { name: /第4章.*第一次 AI 实验/ })
+    if (chapter.getAttribute('aria-expanded') === 'false') await user.click(chapter)
+    await user.click(screen.getByRole('button', { name: '阅读本章内容' }))
+    await user.click(screen.getByRole('button', { name: '去第 4 章测试' }))
+
+    expect(screen.getByRole('region', { name: '闯关地图' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '测试' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByRole('heading', { name: '第4章 · 第一次 AI 实验' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('闯关进度')).toHaveTextContent('2/ 9')
+  })
+
   it('keeps the AI companion available on nested app screens', async () => {
     const user = userEvent.setup()
     render(<AppStateProvider><MainShell /></AppStateProvider>)

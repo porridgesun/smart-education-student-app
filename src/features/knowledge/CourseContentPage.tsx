@@ -2,6 +2,7 @@ import { ArrowLeft, BookOpen, ExternalLink, Lightbulb, PlayCircle, Target } from
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppState } from '../../app/AppState'
 import { getGradeBand, type PrimaryGrade } from '../../app/learning'
+import { getGrade56LessonDetail, type Grade56LessonDetail, type Grade56Video } from './content/grade56Content'
 import { stories } from './content/storyContent'
 import { COURSE_PACKAGES, getCourseForBand, type CoursePart } from './courseCatalog'
 import './course-content.css'
@@ -131,11 +132,13 @@ function LessonVideoCard({
   videoUrl,
   bvid,
   notes,
+  grade56Video,
 }: {
   title: string
   videoUrl: string
   bvid: string
   notes: string[]
+  grade56Video?: Grade56Video
 }) {
   const [playerState, setPlayerState] = useState<'loading' | 'ready' | 'failed'>('loading')
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -158,7 +161,7 @@ function LessonVideoCard({
       <div className="lesson-video-card__heading">
         <span className="lesson-video-card__icon" aria-hidden="true"><PlayCircle size={20} /></span>
         <div>
-          <span>本章视频</span>
+          <span>{grade56Video ? '选看视频' : '本章视频'}</span>
           <h4>{title}</h4>
         </div>
       </div>
@@ -196,10 +199,11 @@ function LessonVideoCard({
         href={videoUrl}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`在原平台打开${title}`}
+        aria-label={grade56Video ? '在视频平台打开' : `在原平台打开${title}`}
       >
-        前往 B 站观看<ExternalLink size={15} aria-hidden="true" />
+        {grade56Video ? '在视频平台打开' : '前往 B 站观看'}<ExternalLink size={15} aria-hidden="true" />
       </a>
+      {grade56Video && <p className="grade56-video-prompt">边看边想：{grade56Video.watchPrompt}</p>}
       {notes.length > 0 && (
         <div className="lesson-video-card__notes">
           {notes.map((note, index) => <p key={`${title}-${index}`}>{renderInline(note)}</p>)}
@@ -240,13 +244,15 @@ type Props = {
   courseId: string
   chapterNum: number
   onBack: () => void
+  onStartTest?: (courseId: string, chapterNum: number) => void
 }
 
-export function CourseContentPage({ courseId, chapterNum, onBack }: Props) {
+export function CourseContentPage({ courseId, chapterNum, onBack, onStartTest }: Props) {
   const { state, completeKnowledge } = useAppState()
   const activeCourse = getCourseForBand(getGradeBand(state.grade as PrimaryGrade))
   const course = Object.values(COURSE_PACKAGES).find((candidate) => candidate.id === courseId) ?? activeCourse
   const part = course.parts.find((candidate) => candidate.number === chapterNum) ?? null
+  const grade56Detail = courseId === 'ael' && part ? getGrade56LessonDetail(part.id) : undefined
   const isActiveCourse = course.id === activeCourse.id
   const activePart = isActiveCourse ? part : null
   const progress = state.learningProgress[activeCourse.band]
@@ -294,8 +300,12 @@ export function CourseContentPage({ courseId, chapterNum, onBack }: Props) {
         <div className="markdown-body">{renderMarkdown(content)}</div>
       )}
 
-      {courseId === 'ael' && content && typeof content !== 'string' && (
-        <Grade56Content part={content as CoursePart} />
+      {courseId === 'ael' && part && grade56Detail && (
+        <Grade56Content
+          part={part}
+          detail={grade56Detail}
+          onStartTest={() => onStartTest ? onStartTest(courseId, part.number) : onBack()}
+        />
       )}
 
       {part && (
@@ -316,22 +326,24 @@ export function CourseContentPage({ courseId, chapterNum, onBack }: Props) {
   )
 }
 
-function Grade56Content({ part }: { part: CoursePart }) {
-  const sections = [
-    { icon: '🏠', title: '生活问题', text: part.summary },
-    { icon: '💡', title: '核心知识', text: part.concept },
-    { icon: '🧪', title: '小实验', text: part.experiment },
-    { icon: '🛡️', title: '安全提醒', text: part.safety },
-    { icon: '🎯', title: '本章挑战', text: part.challenge },
-  ]
-
+function Grade56Content({ part, detail, onStartTest }: { part: CoursePart; detail: Grade56LessonDetail; onStartTest: () => void }) {
   return (
     <article className="grade56-content">
-      {part.keyConcepts.length > 0 && (
-        <section className="grade56-section grade56-section--concepts" aria-labelledby={`concepts-${part.id}`}>
-          <span className="grade56-section__icon" aria-hidden="true">🗂️</span>
-          <div>
-            <h2 id={`concepts-${part.id}`}>新词小卡</h2>
+      <section className="grade56-section" aria-label="生活问题">
+        <h2>生活问题</h2>
+        <p>{detail.intro}</p>
+      </section>
+      <section className="grade56-section" aria-label="图解知识">
+        <h2>图解知识</h2>
+        <h3>{detail.visualTitle}</h3>
+        <dl className="grade56-visual-grid">
+          {detail.visualSteps.map((step) => (
+            <div key={step.label}><dt>{step.label}</dt><dd>{step.explanation}</dd></div>
+          ))}
+        </dl>
+        {part.keyConcepts.length > 0 && (
+          <div className="grade56-glossary">
+            <h3>新词小卡</h3>
             <dl className="grade56-concepts">
               {part.keyConcepts.map((concept) => (
                 <div key={concept.term}>
@@ -341,17 +353,42 @@ function Grade56Content({ part }: { part: CoursePart }) {
               ))}
             </dl>
           </div>
+        )}
+      </section>
+      <section className="grade56-section" aria-label="动手实验">
+        <h2>动手实验</h2>
+        <h3>{detail.experiment.title}</h3>
+        <p><strong>准备：</strong>{detail.experiment.materials.join('、')}</p>
+        <ol className="grade56-steps">{detail.experiment.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+        <p className="grade56-record"><strong>记录：</strong>{detail.experiment.recordPrompt}</p>
+      </section>
+      <section className="grade56-section grade56-section--safety" aria-label="安全提醒">
+        <h2>安全提醒</h2>
+        <ul className="grade56-checklist">{detail.safetyChecklist.map((tip) => <li key={tip}>{tip}</li>)}</ul>
+      </section>
+      <section className="grade56-section" aria-label="小挑战">
+        <h2>小挑战</h2>
+        <h3>{detail.challenge.title}</h3>
+        <ol className="grade56-steps">{detail.challenge.instructions.map((instruction) => <li key={instruction}>{instruction}</li>)}</ol>
+        <p className="grade56-success">{detail.challenge.successHint}</p>
+      </section>
+      {detail.video && (
+        <section className="grade56-section grade56-section--video" aria-label="选看视频">
+          <h2>选看视频</h2>
+          <p>视频只是选看，不影响知识完成、测试或奖励。</p>
+          <LessonVideoCard
+            title={detail.video.title}
+            videoUrl={`https://www.bilibili.com/video/${detail.video.bvid}`}
+            bvid={detail.video.bvid}
+            notes={[]}
+            grade56Video={detail.video}
+          />
         </section>
       )}
-      {sections.map((section) => (
-        <section key={section.title} className="grade56-section">
-          <span className="grade56-section__icon" aria-hidden="true">{section.icon}</span>
-          <div>
-            <h2>{section.title}</h2>
-            <p>{section.text}</p>
-          </div>
-        </section>
-      ))}
+      <aside className="grade56-test-entry">
+        <p>完成阅读后，可到测试页挑战本章。</p>
+        <button type="button" onClick={onStartTest}>去第 {part.number} 章测试</button>
+      </aside>
     </article>
   )
 }

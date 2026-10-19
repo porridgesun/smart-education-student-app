@@ -141,8 +141,63 @@ describe('CourseContentPage', () => {
     )
 
     expect(screen.getByRole('heading', { name: '第1章 · AI 系统拆解站' })).toBeInTheDocument()
-    expect(screen.getByText('AI 系统像一支合作队，每个部分都有自己的任务。')).toBeInTheDocument()
-    expect(screen.getByText('AI 只是工具，重要决定要让人来负责。')).toBeInTheDocument()
+    expect(screen.getByText(/校园里有两片长得很像的叶子/)).toBeInTheDocument()
+    expect(screen.getByText(/识别建议不能用于判断植物能否食用/)).toBeInTheDocument()
+  })
+
+  it('renders the full primary-school lab sequence for chapter four', () => {
+    render(<AppStateProvider><CourseContentPage courseId="ael" chapterNum={4} onBack={vi.fn()} /></AppStateProvider>)
+
+    const content = document.querySelector('.grade56-content')!
+    expect(within(content as HTMLElement).getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      '生活问题', '图解知识', '动手实验', '安全提醒', '小挑战', '选看视频',
+    ])
+    expect(screen.getByText('教室物品识别实验路线')).toBeInTheDocument()
+    expect(screen.getByText(/两轮各答对几次/)).toBeInTheDocument()
+    expect(screen.getByTitle('用 AI 识别水果：观察采集、训练、识别流程')).toHaveAttribute(
+      'src', expect.stringContaining('bvid=BV1Jau7zoEf5'),
+    )
+    expect(screen.getByTitle('用 AI 识别水果：观察采集、训练、识别流程')).toHaveAttribute(
+      'src', expect.stringContaining('autoplay=0'),
+    )
+    expect(screen.getByRole('link', { name: '在视频平台打开' })).toHaveAttribute('target', '_blank')
+    expect(screen.getByRole('link', { name: '在视频平台打开' })).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getByRole('button', { name: '去第 4 章测试' })).toBeInTheDocument()
+  })
+
+  it('does not require a video for the safety chapter', async () => {
+    const user = userEvent.setup()
+    render(<AppStateProvider><CourseContentPage courseId="ael" chapterNum={8} onBack={vi.fn()} /></AppStateProvider>)
+    expect(screen.queryByRole('heading', { name: '选看视频' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '完成本部分知识' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '去第 8 章测试' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '完成本部分知识' }))
+    expect(screen.getByRole('status')).toHaveTextContent('获得 30 积分')
+  })
+
+  it('renders all six project canvas steps in chapter nine', () => {
+    render(<AppStateProvider><CourseContentPage courseId="ael" chapterNum={9} onBack={vi.fn()} /></AppStateProvider>)
+    expect(screen.getByText('我的 AI 小项目六格画布')).toBeInTheDocument()
+    const visual = screen.getByRole('region', { name: '图解知识' })
+    expect(within(visual).getAllByRole('term').map((term) => term.textContent)).toEqual([
+      '目标', '输入', '输出', '测试', '风险', '改进',
+    ])
+  })
+
+  it('offers test navigation without marking the test passed', async () => {
+    const user = userEvent.setup()
+    const onStartTest = vi.fn()
+    render(
+      <AppStateProvider>
+        <CourseContentPage courseId="ael" chapterNum={4} onBack={vi.fn()} onStartTest={onStartTest} />
+        <ProgressObserver />
+      </AppStateProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: '去第 4 章测试' }))
+    expect(onStartTest).toHaveBeenCalledWith('ael', 4)
+    expect(screen.getByLabelText('all knowledge progress')).toHaveTextContent(
+      '{"grade1-2":[],"grade3-4":[],"grade5-6":["ael-1","ael-2","ael-3"]}',
+    )
   })
 
   it.each([

@@ -281,6 +281,7 @@ export function MainShell() {
           courseId={view.courseId}
           chapterNum={view.chapterNum}
           onBack={pop}
+          onStartTest={() => selectTab('test')}
         />
         <AiCompanion />
         <BottomNavigation activeTab={activeTab} onSelect={selectTab} />
