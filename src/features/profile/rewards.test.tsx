@@ -1,11 +1,44 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppStateProvider } from '../../app/AppState'
+import { getPartIdsForBand, type GradeBand, type PrimaryGrade } from '../../app/learning'
 import { createDefaultState } from '../../app/model'
+import type { PointTransaction } from '../../app/points'
 import { MedalsPage } from './MedalsPage'
 import { PointsPage } from './PointsPage'
 
 describe('profile rewards', () => {
+  beforeEach(() => localStorage.clear())
+
+  const courses = [
+    ['grade1', 'grade1-2', 'qmx-1', '启明星岛', '好奇宝石', '启明星守护者'],
+    ['grade3', 'grade3-4', 'cxd-1', 'AI 超能力图鉴', '全景徽章', '创想大陆之星'],
+    ['grade5', 'grade5-6', 'ael-1', 'AI 系统拆解站', '拆解徽章', 'AI 探索小导师'],
+  ] as const satisfies readonly (readonly [PrimaryGrade, GradeBand, string, string, string, string])[]
+
+  it.each(courses)('shows the first chapter medal and transaction titles for %s', (grade, band, partId, title, medalName) => {
+    const state = createDefaultState()
+    state.grade = grade
+    state.learningProgress['grade5-6'] = { knowledgeCompleted: [], testsPassed: [] }
+    state.learningProgress[band] = { knowledgeCompleted: [partId], testsPassed: [partId] }
+    state.processedRewardIds = state.transactions.map((record) => record.eventId)
+    const records: PointTransaction[] = [
+      { id: `knowledge:${partId}`, eventId: `knowledge:${partId}`, kind: 'knowledge', title: `完成知识：${title}`, amount: 30, occurredAt: '2026-10-19' },
+      { id: `test:${partId}`, eventId: `test:${partId}`, kind: 'test', title: `通过测试：${title}`, amount: 50, occurredAt: '2026-10-19' },
+      { id: `medal:${partId}`, eventId: `medal:${partId}`, kind: 'medal', title: `点亮课程徽章：${partId}`, amount: 20, occurredAt: '2026-10-19' },
+    ]
+    state.transactions.push(...records)
+    state.processedRewardIds.push(...records.map((record) => record.eventId))
+    localStorage.setItem('student-app-state', JSON.stringify(state))
+
+    render(<AppStateProvider><MedalsPage onBack={vi.fn()} /><PointsPage onBack={vi.fn()} /></AppStateProvider>)
+
+    expect(screen.getByText(medalName).closest('li')).toHaveTextContent('已点亮')
+    expect(screen.getByText('当前积分').parentElement).toHaveTextContent('2,100')
+    expect(screen.getByText(`完成知识：${title}`)).toBeInTheDocument()
+    expect(screen.getByText(`通过测试：${title}`)).toBeInTheDocument()
+  })
+
   it('derives the default first two medals and explains the third', () => {
     render(<AppStateProvider><MedalsPage onBack={vi.fn()} /></AppStateProvider>)
 
@@ -21,13 +54,11 @@ describe('profile rewards', () => {
     expect(screen.getByText('AI 探索小导师').closest('li')).toHaveTextContent('完成全部课程知识与测试后点亮')
   })
 
-  it('lights the finale only after every course knowledge and test is complete', () => {
+  it.each(courses)('lights the correct finale only after every part is complete for %s', (grade, band, _, __, ___, finaleName) => {
     const state = createDefaultState()
-    const allPartIds = [
-      'ael-1', 'ael-2', 'ael-3', 'ael-4', 'ael-5',
-      'ael-6', 'ael-7', 'ael-8', 'ael-9',
-    ] as const
-    state.learningProgress['grade5-6'] = {
+    const allPartIds = getPartIdsForBand(band)
+    state.grade = grade
+    state.learningProgress[band] = {
       knowledgeCompleted: [...allPartIds],
       testsPassed: [...allPartIds],
     }
@@ -35,7 +66,22 @@ describe('profile rewards', () => {
 
     render(<AppStateProvider><MedalsPage onBack={vi.fn()} /></AppStateProvider>)
 
-    expect(screen.getByText('AI 探索小导师').closest('li')).toHaveTextContent('已点亮')
+    expect(screen.getByText(finaleName).closest('li')).toHaveTextContent('已点亮')
+  })
+
+  it.each(courses)('keeps the finale locked with the last test missing for %s', (grade, band, _, __, ___, finaleName) => {
+    const state = createDefaultState()
+    const allPartIds = getPartIdsForBand(band)
+    state.grade = grade
+    state.learningProgress[band] = {
+      knowledgeCompleted: [...allPartIds],
+      testsPassed: allPartIds.slice(0, -1),
+    }
+    localStorage.setItem('student-app-state', JSON.stringify(state))
+
+    render(<AppStateProvider><MedalsPage onBack={vi.fn()} /></AppStateProvider>)
+
+    expect(screen.getByText(finaleName).closest('li')).toHaveTextContent('完成全部课程知识与测试后点亮')
   })
 
   it('renders totals and records from the same 2000-point ledger', () => {
