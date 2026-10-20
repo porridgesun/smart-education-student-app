@@ -360,6 +360,8 @@ Expected: PASS；所有课程、测试、奖励、认证与商城测试仍被发
 Run: npm run build  
 Expected: PASS，TypeScript 与 Vite 均无错误。
 
+**测试运行器分流补充（Task 4）：** 主 `npm test -- --run` 仅发现 `src/**`，明确排除 `node_modules`、`dist` 和 `.worktrees`；`npm run test:server` 使用 `vitest.server.config.ts` 执行 `server/companionPolicy.test.mjs`，随后用 `node --test server/recognition.test.mjs` 执行 Node 原生测试。`npm run test:all` 依次运行前端与这两份服务端测试，避免主 Vitest 的 jsdom/React 配置误用于服务端测试，也避免遗漏服务端测试。
+
 - [ ] **Step 5: 完整手动验收**
 
 Run: npm run dev  
