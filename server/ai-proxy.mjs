@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildDeepSeekPayload, prepareStudentQuestion, prepareStudentReply } from './companionPolicy.mjs'
 import { recognize } from './recognition.mjs'
+import { synthesizeSpeech } from './tts.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.COMPANION_PROXY_PORT ?? 8787)
@@ -81,6 +82,23 @@ const server = createServer(async (request, response) => {
       const code = error instanceof Error ? error.message : 'provider_error'
       const known = ['invalid_input', 'invalid_json', 'body_too_large', 'vision_not_configured', 'text_not_configured', 'invalid_result', 'result_too_long', 'provider_error']
       sendJson(response, code.includes('not_configured') ? 503 : code.startsWith('invalid_') ? 400 : 502, { error: known.includes(code) ? code : 'provider_error' })
+    }
+    return
+  }
+  if (request.method === 'POST' && request.url?.split('?')[0] === '/api/tts') {
+    try {
+      const body = await readJson(request)
+      const audio = await synthesizeSpeech(body?.text, body?.voice)
+      response.writeHead(200, {
+        'content-type': 'audio/mpeg',
+        'cache-control': 'no-store',
+      })
+      response.end(audio)
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'tts_failed'
+      sendJson(response, code === 'invalid_input' || code === 'text_too_long' ? 400 : 502, {
+        error: code === 'invalid_input' || code === 'text_too_long' ? code : 'tts_failed',
+      })
     }
     return
   }

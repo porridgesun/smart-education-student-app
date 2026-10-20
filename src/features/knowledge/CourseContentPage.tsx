@@ -1,10 +1,11 @@
-import { ArrowLeft, BookOpen, ExternalLink, Lightbulb, PlayCircle, Target } from 'lucide-react'
+import { ArrowLeft, BookOpen, ExternalLink, Lightbulb, Pause, Play, PlayCircle, SkipBack, SkipForward, Square, Target } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppState } from '../../app/AppState'
 import { getGradeBand, type PrimaryGrade } from '../../app/learning'
 import { getGrade56LessonDetail, type Grade56LessonDetail, type Grade56Video } from './content/grade56Content'
 import { stories } from './content/storyContent'
 import { COURSE_PACKAGES, getCourseForBand, type CoursePart } from './courseCatalog'
+import { buildStorySegments, useReadAloud } from './useReadAloud'
 import './course-content.css'
 
 // 3-4年级 markdown 文件通过 Vite ?raw 导入
@@ -396,19 +397,95 @@ function Grade56Content({ part, detail, onStartTest }: { part: CoursePart; detai
 // 1-2年级 故事内容渲染
 function QmxContent({ story }: { story: NonNullable<typeof stories[0]> }) {
   const illustratedPages = qmxTextPages[story.day] ?? []
+  const segments = useMemo(() => buildStorySegments(story), [story])
+  const readAloud = useReadAloud(segments)
+  const currentAnchor = readAloud.index >= 0 ? segments[readAloud.index]?.anchor ?? null : null
+
+  // 播读时自动滚动到正在读的画面/板块
+  useEffect(() => {
+    if (!currentAnchor) return
+    document.getElementById(currentAnchor)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+  }, [currentAnchor])
+
+  function startFromPanel(panelIndex: number) {
+    const segmentIndex = segments.findIndex((segment) => segment.panelIndex === panelIndex)
+    if (segmentIndex >= 0) readAloud.play(segmentIndex)
+  }
+
+  const playerStateLabel =
+    readAloud.isPlaying
+      ? readAloud.engine === 'server' ? '播读中 · 自然音色' : '播读中…'
+      : readAloud.isPaused ? '已暂停' : '跟我读'
 
   return (
     <div className="story-content">
-      <div className="story-goal">
+      <div className="story-goal" id="story-goal">
         <Target size={16} />
         <span>{story.goal}</span>
       </div>
 
+      {readAloud.supported && (
+        <div
+          className={`story-player${readAloud.isPaused ? ' is-paused' : ''}`}
+          role="group"
+          aria-label="绘本播读控制"
+        >
+          <button
+            type="button"
+            className="story-player__main"
+            onClick={() => readAloud.play()}
+            aria-label={readAloud.isPlaying ? '暂停播读' : '开始播读'}
+          >
+            {readAloud.isPlaying ? <Pause size={20} /> : <Play size={20} />}
+          </button>
+          <button
+            type="button"
+            className="story-player__step"
+            onClick={readAloud.prev}
+            disabled={readAloud.index <= 0}
+            aria-label="上一句"
+          >
+            <SkipBack size={16} />
+          </button>
+          <button
+            type="button"
+            className="story-player__step"
+            onClick={readAloud.next}
+            disabled={readAloud.index < 0 || readAloud.index >= segments.length - 1}
+            aria-label="下一句"
+          >
+            <SkipForward size={16} />
+          </button>
+          <div className="story-player__info">
+            <span className="story-player__state">{playerStateLabel}</span>
+            <span className="story-player__count">
+              {readAloud.index >= 0 ? `${readAloud.index + 1} / ${segments.length}` : `${segments.length} 句`}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="story-player__step"
+            onClick={readAloud.stop}
+            disabled={readAloud.status === 'idle'}
+            aria-label="停止播读"
+          >
+            <Square size={13} />
+          </button>
+        </div>
+      )}
+
       <div className="story-panels">
         {illustratedPages.map((page, i) => {
           const panel = story.panels[i]
+          const isReading = currentAnchor === `story-panel-${i}`
           return (
-            <figure key={page} className="story-panel story-panel--illustrated">
+            <figure
+              key={page}
+              className={`story-panel story-panel--illustrated${isReading ? ' is-reading' : ''}`}
+              id={`story-panel-${i}`}
+              onClick={readAloud.supported ? () => startFromPanel(i) : undefined}
+              title={readAloud.supported ? '点击这一页，从这里开始播读' : undefined}
+            >
               <img
                 className="panel-image"
                 src={getTextComicPage(page)}
@@ -418,13 +495,19 @@ function QmxContent({ story }: { story: NonNullable<typeof stories[0]> }) {
                 height={720}
                 style={{ aspectRatio: '16 / 9', objectFit: 'contain' }}
               />
-              <figcaption>绘本 {i + 1} / {illustratedPages.length}</figcaption>
+              <figcaption>
+                绘本 {i + 1} / {illustratedPages.length}
+                {isReading && <span className="reading-badge">正在读</span>}
+              </figcaption>
             </figure>
           )
         })}
       </div>
 
-      <div className="mini-lesson">
+      <div
+        className={`mini-lesson${currentAnchor === 'story-lesson' ? ' is-reading' : ''}`}
+        id="story-lesson"
+      >
         <div className="lesson-head">
           <Lightbulb size={18} />
           <span>博士星小课堂</span>
@@ -432,7 +515,10 @@ function QmxContent({ story }: { story: NonNullable<typeof stories[0]> }) {
         <p className="lesson-text">{story.miniLesson.text}</p>
       </div>
 
-      <div className="story-challenge">
+      <div
+        className={`story-challenge${currentAnchor === 'story-challenge' ? ' is-reading' : ''}`}
+        id="story-challenge"
+      >
         <div className="challenge-head">
           <BookOpen size={18} />
           <span>闯关小挑战</span>

@@ -76,8 +76,8 @@ const systemLesson: Grade56LessonDetail = {
     successHint: '能沿着图说明照片怎样变成建议，分清方法与学到的本领，并给人保留核对结果的环节，就完成了挑战。',
   },
   video: {
-    title: '到底什么是人工智能？人人都能听懂的 AI 知识',
-    bvid: 'BV1F9pgzqEEm',
+    title: '什么是人工智能',
+    bvid: 'BV1CY411H7oZ',
     watchPrompt: '视频中的哪项 AI 功能需要学习材料？把它换成植物识别器，应用会给使用者展示什么？识别错了可以请谁帮忙核对？',
   },
 }
